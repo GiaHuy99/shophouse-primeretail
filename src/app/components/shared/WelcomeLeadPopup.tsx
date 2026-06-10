@@ -4,7 +4,7 @@ import LeadCaptureModal from "@/app/components/shared/LeadCaptureModal";
 import { LEAD_SOURCE, LEAD_SOURCE_LABEL } from "@/app/lib/leadTracking";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const FIRST_DELAY_MS = 5000;
+const FIRST_DELAY_MS = 15000;
 const REPEAT_DELAY_MS = 15000;
 
 export default function WelcomeLeadPopup() {
@@ -36,9 +36,9 @@ export default function WelcomeLeadPopup() {
   return (
     <LeadCaptureModal
       onClose={handleClose}
-      title="Đăng Ký Nhận Tư Vấn"
-      subtitle="Shophouse & BĐS Vinhomes Green Paradise · Cần Giờ"
-      kicker="Liên Hệ Nhanh"
+      title="Đăng Ký Tư Vấn Shophouse"
+      subtitle=" "
+      kicker="Tư Vấn Miễn Phí"
       submitLabel="Gửi Thông Tin"
       source={LEAD_SOURCE.welcomePopup}
       sourceLabel={LEAD_SOURCE_LABEL[LEAD_SOURCE.welcomePopup]}
