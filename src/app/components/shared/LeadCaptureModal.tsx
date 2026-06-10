@@ -1,6 +1,12 @@
 "use client";
 
 import { sendLeadEmail, getEmailJsErrorMessage } from "@/app/lib/sendLeadEmail";
+import {
+  validateLeadContact,
+  validateLeadName,
+  validateLeadPhone,
+  type LeadFieldErrors,
+} from "@/app/lib/leadFormValidation";
 import type { LeadSourceId } from "@/app/lib/leadTracking";
 import {
   useCallback,
@@ -92,6 +98,7 @@ export default function LeadCaptureModal({
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<LeadFieldErrors>({});
   const [focused, setFocused] = useState<string | null>(null);
   const [show, setShow] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
@@ -155,6 +162,14 @@ export default function LeadCaptureModal({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (submitting) return;
+
+    const errors = validateLeadContact(form.name, form.phone);
+    setFieldErrors(errors);
+    if (errors.name || errors.phone) {
+      if (errors.name) nameInputRef.current?.focus();
+      return;
+    }
+
     setSubmitting(true);
     setSubmitError(null);
 
@@ -164,9 +179,9 @@ export default function LeadCaptureModal({
         sourceLabel,
         pageSection: title,
         pageDetail: subtitle,
-        name: form.name,
+        name: form.name.trim(),
         email: form.email,
-        phone: form.phone,
+        phone: form.phone.replace(/\D/g, ""),
         note: form.note,
         propertyName:
           typeof extraPayload?.propertyName === "string"
@@ -246,7 +261,7 @@ export default function LeadCaptureModal({
                 {subtitle ? <p className="text-xs mt-1 text-cream">{subtitle}</p> : null}
               </div>
               {children}
-              <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+              <form onSubmit={handleSubmit} className="flex flex-col gap-3" noValidate>
                 {(["name", "email", "phone"] as const).map((field) => (
                   <div key={field}>
                     <label
@@ -258,7 +273,7 @@ export default function LeadCaptureModal({
                     <input
                       id={`${idPrefix}-${field}`}
                       ref={field === "name" ? nameInputRef : undefined}
-                      required
+                      required={field === "email"}
                       disabled={submitting}
                       autoComplete={{
                         name: "name",
@@ -266,15 +281,46 @@ export default function LeadCaptureModal({
                         phone: "tel",
                       }[field]}
                       type={{ name: "text", email: "email", phone: "tel" }[field]}
-                      inputMode={field === "phone" ? "tel" : undefined}
-                      placeholder={{ name: "Nguyễn Văn A", email: "ceo@company.com", phone: "0905 975 795" }[field]}
+                      inputMode={field === "phone" ? "numeric" : undefined}
+                      maxLength={field === "phone" ? 10 : undefined}
+                      placeholder={{ name: "Nguyễn Văn A", email: "ceo@company.com", phone: "0905975795" }[field]}
                       value={form[field]}
-                      onChange={(e) => setForm({ ...form, [field]: e.target.value })}
+                      onChange={(e) => {
+                        const value =
+                          field === "phone"
+                            ? e.target.value.replace(/\D/g, "").slice(0, 10)
+                            : e.target.value;
+                        setForm({ ...form, [field]: value });
+                        if (field === "name" || field === "phone") {
+                          setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
+                        }
+                      }}
                       onFocus={() => setFocused(field)}
-                      onBlur={() => setFocused(null)}
+                      onBlur={() => {
+                        setFocused(null);
+                        if (field === "name") {
+                          const err = validateLeadName(form.name);
+                          setFieldErrors((prev) => ({ ...prev, name: err }));
+                        }
+                        if (field === "phone") {
+                          const err = validateLeadPhone(form.phone);
+                          setFieldErrors((prev) => ({ ...prev, phone: err }));
+                        }
+                      }}
+                      aria-invalid={field === "name" || field === "phone" ? !!fieldErrors[field] : undefined}
                       className={inputBase}
                       style={inputStyle(field)}
                     />
+                    {field === "name" && fieldErrors.name ? (
+                      <p className="mt-1.5 text-xs text-red-400" role="alert">
+                        {fieldErrors.name}
+                      </p>
+                    ) : null}
+                    {field === "phone" && fieldErrors.phone ? (
+                      <p className="mt-1.5 text-xs text-red-400" role="alert">
+                        {fieldErrors.phone}
+                      </p>
+                    ) : null}
                   </div>
                 ))}
                 <div>

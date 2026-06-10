@@ -2,6 +2,12 @@
 
 import { SITE_CONTACT } from "@/app/config/contact";
 import { sendLeadEmail, getEmailJsErrorMessage } from "@/app/lib/sendLeadEmail";
+import {
+  validateLeadContact,
+  validateLeadName,
+  validateLeadPhone,
+  type LeadFieldErrors,
+} from "@/app/lib/leadFormValidation";
 import { LEAD_SOURCE, LEAD_SOURCE_LABEL } from "@/app/lib/leadTracking";
 import { useState } from "react";
 
@@ -28,11 +34,17 @@ export default function LeadForm() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<LeadFieldErrors>({});
   const [focused, setFocused] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
+
+    const errors = validateLeadContact(form.name, form.phone);
+    setFieldErrors(errors);
+    if (errors.name || errors.phone) return;
+
     setSubmitting(true);
     setSubmitError(null);
 
@@ -42,9 +54,9 @@ export default function LeadForm() {
         sourceLabel: LEAD_SOURCE_LABEL[LEAD_SOURCE.contactForm],
         pageSection: "Nhận Tư Vấn & Báo Cáo Chuyên Sâu",
         pageDetail: "Form liên hệ cuối trang (#contact)",
-        name: form.name,
+        name: form.name.trim(),
         email: form.email,
-        phone: form.phone,
+        phone: form.phone.replace(/\D/g, ""),
         brand: form.brand,
         model: form.model,
         note: form.note,
@@ -180,7 +192,7 @@ export default function LeadForm() {
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="border border-white/8 p-8">
+              <form onSubmit={handleSubmit} className="border border-white/8 p-8" noValidate>
                 <div className="flex items-center justify-between mb-8">
                   <h3 className="text-white font-semibold text-lg">
                     Nhận Báo Cáo &amp; Tư Vấn Miễn Phí
@@ -198,14 +210,28 @@ export default function LeadForm() {
                     </label>
                     <input
                       type="text"
-                      required
                       placeholder="Nguyễn Văn A"
                       value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      onChange={(e) => {
+                        setForm({ ...form, name: e.target.value });
+                        setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                      }}
                       onFocus={() => setFocused("name")}
-                      onBlur={() => setFocused(null)}
+                      onBlur={() => {
+                        setFocused(null);
+                        setFieldErrors((prev) => ({
+                          ...prev,
+                          name: validateLeadName(form.name),
+                        }));
+                      }}
+                      aria-invalid={!!fieldErrors.name}
                       className={inputClass("name")}
                     />
+                    {fieldErrors.name ? (
+                      <p className="mt-1.5 text-xs text-red-400" role="alert">
+                        {fieldErrors.name}
+                      </p>
+                    ) : null}
                   </div>
 
                   {/* Brand */}
@@ -232,14 +258,33 @@ export default function LeadForm() {
                     </label>
                     <input
                       type="tel"
-                      required
-                      placeholder="0901 234 567"
+                      inputMode="numeric"
+                      maxLength={10}
+                      placeholder="0901234567"
                       value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      onChange={(e) => {
+                        setForm({
+                          ...form,
+                          phone: e.target.value.replace(/\D/g, "").slice(0, 10),
+                        });
+                        setFieldErrors((prev) => ({ ...prev, phone: undefined }));
+                      }}
                       onFocus={() => setFocused("phone")}
-                      onBlur={() => setFocused(null)}
+                      onBlur={() => {
+                        setFocused(null);
+                        setFieldErrors((prev) => ({
+                          ...prev,
+                          phone: validateLeadPhone(form.phone),
+                        }));
+                      }}
+                      aria-invalid={!!fieldErrors.phone}
                       className={inputClass("phone")}
                     />
+                    {fieldErrors.phone ? (
+                      <p className="mt-1.5 text-xs text-red-400" role="alert">
+                        {fieldErrors.phone}
+                      </p>
+                    ) : null}
                   </div>
 
                   {/* Email */}
